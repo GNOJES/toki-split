@@ -1,0 +1,20 @@
+{
+  "name": "toki-split",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.js",
+    "test": "node --test tests/unit.test.js",
+    "test:e2e": "node --test --test-concurrency=1 tests/browser.test.js",
+    "test:all": "npm test && npm run test:e2e",
+    "test:webkit": "TEST_BROWSER=webkit node --test --test-concurrency=1 tests/browser.test.js",
+    "build": "node scripts/build.js"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
