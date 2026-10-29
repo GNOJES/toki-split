@@ -620,7 +620,7 @@ test("real-time mobile round cuts immediately, reveals result, and expires in tw
   }
 });
 
-test("home has only its title, playful art and start; help highlights all star conditions", async () => {
+test("home has only its title, square art and start; help highlights all star conditions", async () => {
   for (const viewport of [
     { width: 320, height: 568 },
     { width: 390, height: 844 },
@@ -796,3 +796,76 @@ test(
     await page.close();
   },
 );
+
+test("home headline, square illustration and start button share the viewport center", async () => {
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 768, height: 1024 },
+    { width: 1280, height: 1000 },
+  ]) {
+    const page = await open({ viewport });
+    const centers = await page.evaluate(() =>
+      [".home-copy", ".home-art svg", ".home-bottom"].map((selector) => {
+        const r = document.querySelector(selector).getBoundingClientRect();
+        return {
+          selector,
+          center: r.x + r.width / 2,
+          width: r.width,
+          viewport: innerWidth,
+        };
+      }),
+    );
+    for (const item of centers)
+      assert.ok(
+        Math.abs(item.center - viewport.width / 2) <= 1,
+        JSON.stringify(item),
+      );
+    assert.equal(await page.locator(".home-art [data-piece]").count(), 2);
+    assert.equal(
+      await page
+        .locator(".home-art circle,.home-art [stroke-dasharray]")
+        .count(),
+      0,
+    );
+    await page.screenshot({
+      path: `test-results/home-square-${viewport.width}.png`,
+    });
+    await page.close();
+  }
+});
+
+test("98.0 percent shows three stars in both result and legacy best records", async () => {
+  const page = await open();
+  await page.evaluate(() =>
+    localStorage.setItem("toki-split-best-v1", JSON.stringify([97.96])),
+  );
+  await page.reload();
+  await page.locator("#homeStartButton").click();
+  assert.match(
+    await page.locator('[data-stage="0"] .best').innerText(),
+    /98.0%/,
+  );
+  assert.equal(
+    await page.locator('[data-stage="0"] .stage-stars').innerText(),
+    "★★★",
+  );
+  await page.evaluate(async () => {
+    const { createUI } = await import("/src/ui.js"),
+      { stages, palette } = await import("/src/stages.js"),
+      { accuracyScore } = await import("/src/scoring.js");
+    const pieces = [{ count: 5102 }, { count: 4898 }],
+      score = accuracyScore(pieces, 10000);
+    createUI({
+      state: { index: 0, pieces, bests: [score] },
+      stages,
+      palette,
+      cutter: { baseArea: 10000 },
+    }).showScore(score, 1);
+  });
+  assert.match(await page.locator(".score-number").innerText(), /98.0/);
+  assert.equal(await page.locator(".stars .star.earned").count(), 3);
+  await page.screenshot({ path: "test-results/result-rounded-98.png" });
+  await page.close();
+});

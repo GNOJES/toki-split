@@ -192,11 +192,11 @@ test("record loading follows configured stage count when more stages are added",
 test("star thresholds include boundaries and zero stars means failure", () => {
   for (const [score, stars] of [
     [0, 0],
-    [74.999, 0],
+    [74.999, 1],
     [75, 1],
-    [89.999, 1],
+    [89.999, 2],
     [90, 2],
-    [97.999, 2],
+    [97.999, 3],
     [98, 3],
     [100, 3],
   ]) {
@@ -276,4 +276,25 @@ test("diagonal antialias islands are absorbed without losing original pixels", (
   assert.equal(result.pieces[0].count, 37);
   assert.equal(result.labels[resolution + 1], 1);
   assert.ok([...result.labels].every((id, i) => (base[i] ? id > 0 : id === 0)));
+});
+
+test("stars match the displayed one-decimal accuracy at every cutoff", () => {
+  for (const [pieces, display, stars] of [
+    [[{ count: 5102 }, { count: 4898 }], "98.0", 3],
+    [[{ count: 5501 }, { count: 4499 }], "90.0", 2],
+    [[{ count: 6251 }, { count: 3749 }], "75.0", 1],
+  ]) {
+    const score = accuracyScore(pieces, 10000);
+    assert.equal(score.toFixed(1), display);
+    assert.equal(starsForScore(score), stars);
+  }
+  for (const [score, stars] of [
+    [74.94, 0],
+    [74.96, 1],
+    [89.94, 1],
+    [89.96, 2],
+    [97.94, 2],
+    [97.96, 3],
+  ])
+    assert.equal(starsForScore(score), stars);
 });

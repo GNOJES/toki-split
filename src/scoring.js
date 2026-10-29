@@ -13,10 +13,11 @@ export function accuracyScore(pieces, original) {
   );
 }
 
-// Shared by result, stage rail and run summary; use the unrounded accuracy.
+// Grade the same one-decimal accuracy shown in results and best records.
 export const STAR_THRESHOLDS = Object.freeze([75, 90, 98]);
 export function starsForScore(score) {
-  return Number.isFinite(score)
-    ? STAR_THRESHOLDS.filter((threshold) => score >= threshold).length
-    : 0;
+  if (!Number.isFinite(score)) return 0;
+  const displayedAccuracy = Number(score.toFixed(1));
+  return STAR_THRESHOLDS.filter((threshold) => displayedAccuracy >= threshold)
+    .length;
 }
