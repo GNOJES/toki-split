@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0b1726"/>
+  <text x="120" y="315" dominant-baseline="central" font-family="Arial, Helvetica, sans-serif" font-size="88" font-weight="700" letter-spacing="-4" fill="#f2f8ff">toki-split</text>
+  <g transform="translate(890 315) rotate(-12) scale(1.4)">
+    <path d="M-101-101H91L-101 91Z" fill="#a4f7be"/>
+    <path d="M101-91V101H-91Z" fill="#7bdcb4"/>
+  </g>
+</svg>

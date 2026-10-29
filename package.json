@@ -9,7 +9,8 @@
     "test:e2e": "node --test --test-concurrency=1 tests/browser.test.js",
     "test:all": "npm test && npm run test:e2e",
     "test:webkit": "TEST_BROWSER=webkit node --test --test-concurrency=1 tests/browser.test.js",
-    "build": "node scripts/build.js"
+    "build": "node scripts/build.js",
+    "assets:share": "node scripts/render-share-image.js"
   },
   "devDependencies": {
     "playwright": "1.64.1"

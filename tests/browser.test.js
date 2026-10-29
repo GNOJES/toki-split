@@ -869,3 +869,27 @@ test("98.0 percent shows three stars in both result and legacy best records", as
   await page.screenshot({ path: "test-results/result-rounded-98.png" });
   await page.close();
 });
+
+test("link sharing exposes a public 1200×630 PNG in static Open Graph metadata", async () => {
+  const page = await open();
+  assert.equal(
+    await page.locator('meta[property="og:title"]').getAttribute("content"),
+    "toki-split",
+  );
+  assert.equal(
+    await page.locator('meta[name="twitter:card"]').getAttribute("content"),
+    "summary_large_image",
+  );
+  const url = await page
+    .locator('meta[property="og:image"]')
+    .getAttribute("content");
+  assert.equal(url, "https://toki-split.vercel.app/assets/og-image.png");
+  const image = await page.request.get(baseURL + "/assets/og-image.png");
+  assert.equal(image.status(), 200);
+  assert.match(image.headers()["content-type"], /image\/png/);
+  const png = await image.body();
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.equal(png.readUInt32BE(16), 1200);
+  assert.equal(png.readUInt32BE(20), 630);
+  await page.close();
+});

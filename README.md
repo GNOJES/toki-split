@@ -116,3 +116,9 @@ npm run build
 - 방문 이력은 실제 터치/클릭 후 활성화하고 기존 항목을 재사용합니다. 반복 뒤로가기나 새로고침으로 항목이 쌓이지 않습니다.
 
 처음 접속한 뒤 화면을 한 번도 조작하지 않은 상태의 뒤로가기나 브라우저의 탭 닫기·주소 이동은 웹앱에서 제어할 수 없습니다. Chromium은 사용자 조작 없이 추가된 항목과 back 처리 중 새로 삽입한 항목을 건너뛸 수 있어, popstate에서 pushState를 반복하지 않습니다. [Chromium 공식 동작 기준](https://chromium.googlesource.com/chromium/src/+/main/docs/history_manipulation_intervention.md)
+
+## 링크 공유 이미지
+
+공유 미리보기는 게임 이름과 민트색 사각형만 담은 `assets/og-image.png`(1200×630)를 사용합니다. Open Graph와 Twitter Card 메타태그는 정적 HTML에 포함되어 있으며, 이미지도 `dist/assets/`에 배포합니다.
+
+편집 가능한 원본은 `assets/og-image.svg`입니다. 수정 후 개발용 Playwright가 설치된 환경에서 `npm run assets:share`로 PNG를 다시 만들 수 있습니다. 일반 배포 빌드는 저장된 PNG를 복사하므로 브라우저나 이미지 렌더링 의존성이 필요하지 않습니다.
