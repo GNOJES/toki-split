@@ -205,3 +205,75 @@ test("star thresholds include boundaries and zero stars means failure", () => {
   for (const score of [null, undefined, NaN])
     assert.equal(starsForScore(score), 0);
 });
+
+test("40 unique stages keep the legacy ten and add split variants and object outlines", async () => {
+  const { stages } = await import("../src/stages.js");
+  assert.equal(stages.length, 40);
+  assert.deepEqual(
+    stages.slice(0, 10).map((s) => [s.name, s.n, s.time]),
+    [
+      ["정사각형", 2, 2],
+      ["삼각형", 2, 2.4],
+      ["사다리꼴", 3, 3.2],
+      ["원", 3, 3.5],
+      ["육각형", 4, 3.7],
+      ["비대칭 사각형", 3, 3.7],
+      ["직사각형", 4, 4],
+      ["오각형", 4, 4.3],
+      ["타원", 5, 5],
+      ["불규칙 팔각형", 6, 5.8],
+    ],
+  );
+  assert.equal(new Set(stages.map((s) => s.name + ":" + s.n)).size, 40);
+  assert.ok(
+    stages.slice(10, 24).filter((s) => s.kind === "object").length >= 4,
+  );
+  assert.ok(stages.slice(24).every((s) => s.kind === "object"));
+  for (const name of ["우산", "사과", "토끼"])
+    assert.ok(stages.some((s) => s.name === name));
+  for (const s of stages) {
+    assert.ok(s.n >= 2 && s.n <= 6 && s.time >= 2 && s.time <= 5.8);
+    assert.ok(s.poly.length >= 3);
+    assert.ok(
+      s.poly.every(
+        (p) =>
+          Number.isFinite(p.x) &&
+          Number.isFinite(p.y) &&
+          p.x > 0 &&
+          p.x < 1 &&
+          p.y > 0 &&
+          p.y < 1,
+      ),
+    );
+  }
+});
+
+test("extended stage records survive saving and reloading", () => {
+  const bests = Array(40).fill(null);
+  bests[0] = 100;
+  bests[39] = 98;
+  let saved;
+  const storage = {
+    setItem(k, v) {
+      saved = v;
+    },
+    getItem() {
+      return saved;
+    },
+  };
+  saveBests(storage, bests);
+  assert.deepEqual(loadBests(storage, 40), bests);
+});
+
+test("diagonal antialias islands are absorbed without losing original pixels", () => {
+  const resolution = 12,
+    base = new Uint8Array(resolution * resolution);
+  for (let y = 2; y < 8; y++)
+    for (let x = 2; x < 8; x++) base[y * resolution + x] = 1;
+  base[resolution + 1] = 1; // touches the filled shape only diagonally
+  const result = partitionMask(base, base, resolution);
+  assert.equal(result.pieces.length, 1);
+  assert.equal(result.pieces[0].count, 37);
+  assert.equal(result.labels[resolution + 1], 1);
+  assert.ok([...result.labels].every((id, i) => (base[i] ? id > 0 : id === 0)));
+});

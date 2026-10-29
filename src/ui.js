@@ -50,7 +50,7 @@ export function createUI({ state, stages, palette, cutter }) {
           ? `별 ${stars}개, ${stars ? "통과" : "실패"}`
           : "미도전";
         const best = played ? state.bests[i].toFixed(1) + "%" : "미도전";
-        return `<button type="button" class="stage-btn ${i === state.index ? "active" : ""}" data-stage="${i}" aria-label="${i + 1}스테이지 ${s.name}, ${rating}, 최고 기록 ${best}"><span class="n">STAGE ${String(i + 1).padStart(2, "0")}</span><span class="stage-name">${s.name}</span><span class="stage-meta">${s.n}등분 · ${s.time}초</span><span class="stage-stars ${played ? (stars ? "earned" : "failed") : "unplayed"}" aria-hidden="true">${"★".repeat(stars)}${"☆".repeat(3 - stars)}</span><span class="best">${best}</span></button>`;
+        return `<button type="button" class="stage-btn ${i === state.index ? "active" : ""}" data-stage="${i}" aria-label="${i + 1}스테이지 ${s.name}, ${rating}, 최고 기록 ${best}"><span class="n">STAGE ${String(i + 1).padStart(2, "0")}</span><svg class="stage-preview" viewBox="0 0 100 100" aria-hidden="true"><polygon points="${s.poly.map((p) => `${(p.x * 100).toFixed(2)},${(p.y * 100).toFixed(2)}`).join(" ")}"/></svg><span class="stage-name">${s.name}</span><span class="stage-meta">${s.n}등분 · ${s.time}초</span><span class="stage-stars ${played ? (stars ? "earned" : "failed") : "unplayed"}" aria-hidden="true">${"★".repeat(stars)}${"☆".repeat(3 - stars)}</span><span class="best">${best}</span></button>`;
       })
       .join("");
   }
@@ -65,8 +65,7 @@ export function createUI({ state, stages, palette, cutter }) {
     $("modal").classList.add("hidden");
     $("app").inert = false;
   }
-  const ratingGuide = `<p class="rating-guide">★ ${STAR_THRESHOLDS[0]}% 이상 · ★★ ${STAR_THRESHOLDS[1]}% 이상 · ★★★ ${STAR_THRESHOLDS[2]}% 이상<br><span>${STAR_THRESHOLDS[0]}% 미만은 별 0개 · 실패</span></p>`;
-  const explanation = `<div class="instruction"><strong>조작 방법</strong><br>손가락이나 마우스로 도형의 한쪽 경계부터 다른 경계까지 이어 그려주세요.<br>직선·곡선 모두 그린 경로 그대로 잘려요.<br>목표 개수보다 많아지는 절단은 취소돼요.<br>완성하면 조각별 넓이를 잠시 보여드려요.</div>${ratingGuide}`;
+  const explanation = `<p class="help-instruction">도형을 가로질러 그어주세요.<br>같은 넓이로 나눌수록 높은 점수!</p><div class="help-ratings" aria-label="별점 조건">${STAR_THRESHOLDS.map((score, i) => `<div class="help-rating ${i === 2 ? "best" : ""}"><span class="help-stars" aria-label="별 ${i + 1}개">${"★".repeat(i + 1)}${"☆".repeat(2 - i)}</span><strong>${score}%</strong><span>이상</span></div>`).join("")}</div><p class="help-failure">75% 미만 또는 시간 초과는 실패예요.</p>`;
   function showScore(score, timeRemaining) {
     const s = stages[state.index],
       stars = starsForScore(score),

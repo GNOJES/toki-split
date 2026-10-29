@@ -129,7 +129,7 @@ function finish() {
     cancelReveal();
     draw();
     showScore(score, timeRemaining);
-  }, 2600);
+  }, 1500);
 }
 function timeUp() {
   input.cancel();
@@ -166,7 +166,7 @@ function showHelp() {
   }
   draw();
   openModal(
-    `<div class="modal-kicker">HOW TO PLAY</div><h2>도형을 균등하게 나눠요</h2><p>같은 넓이로 나누는 감각을 시험하는 간단한 타임어택 게임입니다.</p>${explanation}<button class="cta" data-action="closehelp">${state.paused ? "이어하기 →" : "확인"}</button>`,
+    `<div class="modal-kicker">HOW TO PLAY</div><h2>같은 넓이로 나눠요</h2>${explanation}<button class="cta" data-action="closehelp">${state.paused ? "이어하기 →" : "확인"}</button>`,
     "help",
   );
   updateStats();

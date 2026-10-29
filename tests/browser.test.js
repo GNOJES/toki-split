@@ -66,7 +66,7 @@ test("home → stages → instant play, no intro or in-game stage rail", async (
   assert.equal(await page.locator("#modal").isVisible(), false);
   await page.getByRole("button", { name: "게임 시작", exact: true }).click();
   assert.equal(await page.locator("#stageScreen").isVisible(), true);
-  assert.equal(await page.locator("[data-stage]").count(), 10);
+  assert.equal(await page.locator("[data-stage]").count(), 40);
   await page.screenshot({ path: "test-results/stages-mobile.png" });
   await page.locator('[data-stage="0"]').click();
   assert.equal(await page.locator("#gameScreen").isVisible(), true);
@@ -125,7 +125,7 @@ test("mobile and landscape play fits viewport and wheel cannot scroll it", async
     );
     await pieces(page, 2);
     await page.screenshot({ path: `test-results/game-${viewport.width}.png` });
-    await page.clock.fastForward(2500);
+    await page.clock.fastForward(1400);
     assert.equal(await page.locator("#modal").isVisible(), false);
     await page.clock.fastForward(150);
     assert.equal(await page.locator(".result-actions button").count(), 3);
@@ -183,7 +183,7 @@ test("score failure, highest stage stars, retry and stage icons", async () => {
     [0.1, 0.56],
     [0.9, 0.56],
   ]);
-  await page.clock.fastForward(2700);
+  await page.clock.fastForward(1600);
   assert.ok(
     Math.abs(parseFloat(await page.locator(".score-number").innerText()) - 80) <
       1,
@@ -194,13 +194,13 @@ test("score failure, highest stage stars, retry and stage icons", async () => {
     [0.1, 0.5],
     [0.9, 0.5],
   ]);
-  await page.clock.fastForward(2700);
+  await page.clock.fastForward(1600);
   await page.getByRole("button", { name: "재도전", exact: true }).click();
   await drag(page, [
     [0.1, 0.65],
     [0.9, 0.65],
   ]);
-  await page.clock.fastForward(2700);
+  await page.clock.fastForward(1600);
   assert.match(await page.locator("#modalContent h2").innerText(), /실패/);
   assert.equal(await page.locator(".stars .star.earned").count(), 0);
   await page
@@ -308,15 +308,8 @@ test("real Canvas partition for all shapes, curves, self crossings and tiny piec
       cutter.prepare(stage.poly);
       if (check(cutter.findPieces([])) !== 1)
         throw Error("initial shape fragmented");
-      // Convex stage polygons: parallel lines give exactly N pieces.
-      const min = Math.min(...stage.poly.map((p) => p.x)),
-        max = Math.max(...stage.poly.map((p) => p.x));
-      const strokes = Array.from({ length: stage.n - 1 }, (_, i) =>
-        path([
-          [min + ((max - min) * (i + 1)) / stage.n, 0],
-          [min + ((max - min) * (i + 1)) / stage.n, 1],
-        ]),
-      );
+      const { planCuts } = await import("/tests/cut-plans.js");
+      const strokes = planCuts(cutter, stage).map((c) => c.points);
       const count = check(cutter.findPieces(strokes));
       if (count !== stage.n) throw Error(stage.name + " stage failed");
       rows.push({ name: stage.name, pieces: count, area: cutter.baseArea });
@@ -353,47 +346,73 @@ test("real Canvas partition for all shapes, curves, self crossings and tiny piec
       );
     return rows;
   });
-  assert.equal(report.length, 10);
-  console.log(report);
+  assert.equal(report.length, 40);
+  console.log(
+    `Verified ${report.length} connected shapes and area-conserving cut plans`,
+  );
   await page.close();
 });
 
-test("all ten stages complete and use direct next-stage navigation", async () => {
+test("all 40 stages including concave objects play through UI", async () => {
   const page = await open({ viewport: { width: 320, height: 568 } });
   await select(page);
   const stages = await page.evaluate(
     async () => (await import("/src/stages.js")).stages,
   );
-  assert.deepEqual(
-    stages.map((s) => s.time),
-    [2, 2.4, 3.2, 3.5, 3.7, 3.7, 4, 4.3, 5, 5.8],
-  );
+  assert.equal(stages.length, 40);
+  let completed = 0;
   for (const [i, s] of stages.entries()) {
-    const min = Math.min(...s.poly.map((p) => p.x)),
-      max = Math.max(...s.poly.map((p) => p.x));
-    for (let j = 1; j < s.n; j++) {
-      const x = min + ((max - min) * j) / s.n;
+    assert.equal(await page.locator("#shapeName").innerText(), s.name);
+    if ([12, 15, 21, 39].includes(i))
+      await page.screenshot({ path: `test-results/object-stage-${i + 1}.png` });
+    const plan = await page.evaluate(
+      async ({ index, quantized }) => {
+        const { stages } = await import("/src/stages.js");
+        const { createCutter } = await import("/src/cutter.js");
+        const { planCuts } = await import("/tests/cut-plans.js");
+        const box = document.querySelector("canvas").getBoundingClientRect();
+        // WebKit's mouse driver emits integer client coordinates. Plan against
+        // those actual normalized samples, without changing the game's input.
+        const project = (points) =>
+          points.map((p) =>
+            quantized
+              ? {
+                  x: (Math.floor(box.x + p.x * box.width) - box.x) / box.width,
+                  y:
+                    (Math.floor(box.y + p.y * box.height) - box.y) / box.height,
+                }
+              : p,
+          );
+        return planCuts(createCutter(), stages[index], project);
+      },
+      { index: i, quantized: browserName === "webkit" },
+    );
+    for (const cut of plan) {
       await drag(
         page,
-        [
-          [x, 0.02],
-          [x, 0.98],
-        ],
+        cut.points.map((p) => [p.x, p.y]),
         3,
       );
-      await pieces(page, j + 1);
+      try {
+        await pieces(page, cut.count);
+      } catch (error) {
+        throw new Error(
+          `Stage ${i + 1} ${s.name}, cut ${JSON.stringify(cut)}, actual ${await page.locator("#pieceCount").innerText()}, status ${await page.locator("#statusText").innerText()}`,
+          { cause: error },
+        );
+      }
     }
     assert.equal(await page.locator("#revealPcts span").count(), s.n);
-    await page.clock.fastForward(2700);
+    await page.clock.fastForward(1600);
     assert.equal(await page.locator(".segment").count(), s.n);
-    if (i === 9) {
-      await page.screenshot({ path: "test-results/six-pieces-compact.png" });
+    if (await page.locator(".stars .star.earned").count()) completed++;
+    if (i === 39) {
       await page
         .getByRole("button", { name: "전체 결과", exact: true })
         .click();
       assert.match(
         await page.locator("#modalContent").innerText(),
-        /완료한 스테이지 10 \/ 10/,
+        new RegExp(`완료한 스테이지 ${completed} / 40`),
       );
     } else
       await page
@@ -597,6 +616,37 @@ test("real-time mobile round cuts immediately, reveals result, and expires in tw
     await page.waitForTimeout(2200);
     assert.match(await page.locator("#modalContent h2").innerText(), /시간/);
   } finally {
+    await page.close();
+  }
+});
+
+test("home has only its title, playful art and start; help highlights all star conditions", async () => {
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+  ]) {
+    const page = await open({ viewport });
+    const home = await page.locator("#homeScreen").innerText();
+    assert.doesNotMatch(home, /손끝으로|선을 쓱|감각은|도전해보세요|눈대중/);
+    assert.equal(
+      await page
+        .locator(".home-art circle, .home-art [stroke-dasharray]")
+        .count(),
+      0,
+    );
+    await page.screenshot({
+      path: `test-results/home-clean-${viewport.width}.png`,
+    });
+    await page.locator("#helpButton").click();
+    assert.equal(await page.locator(".help-rating").count(), 3);
+    for (const text of ["75%", "90%", "98%"])
+      assert.match(
+        await page.locator(".help-ratings").innerText(),
+        new RegExp(text),
+      );
+    await page.screenshot({
+      path: `test-results/help-simple-${viewport.width}.png`,
+    });
     await page.close();
   }
 });

@@ -91,6 +91,46 @@ export function partitionMask(baseMask, remainingMask, RES = 560) {
       queue[tail++] = i + RES;
     }
   }
+  // A sharp antialiased tip can leave a discarded pixel connected only
+  // diagonally to the base mask. Normal in-mask filling cannot reach it.
+  // Only when such pixels remain, find their nearest surviving label through
+  // the full grid. Background pixels keep label 0 in the final partition.
+  let missing = 0;
+  for (let i = 0; i < PIXELS; i++) if (baseMask[i] && !labels[i]) missing++;
+  if (missing) {
+    const nearest = labels.slice();
+    head = 0;
+    tail = 0;
+    for (let i = 0; i < PIXELS; i++) {
+      if (!nearest[i]) continue;
+      const x = i % RES;
+      if (
+        (x > 0 && !nearest[i - 1]) ||
+        (x < RES - 1 && !nearest[i + 1]) ||
+        (i >= RES && !nearest[i - RES]) ||
+        (i < PIXELS - RES && !nearest[i + RES])
+      )
+        queue[tail++] = i;
+    }
+    const visit = (i, id) => {
+      if (nearest[i]) return;
+      nearest[i] = id;
+      queue[tail++] = i;
+      if (baseMask[i] && !labels[i]) {
+        labels[i] = id;
+        missing--;
+      }
+    };
+    while (head < tail && missing) {
+      const i = queue[head++],
+        x = i % RES,
+        id = nearest[i];
+      if (x > 0) visit(i - 1, id);
+      if (x < RES - 1) visit(i + 1, id);
+      if (i >= RES) visit(i - RES, id);
+      if (i < PIXELS - RES) visit(i + RES, id);
+    }
+  }
   const pieces = Array.from({ length: count }, () => ({
     count: 0,
     sumX: 0,

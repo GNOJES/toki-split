@@ -853,3 +853,95 @@ canvas {
     animation: none !important;
   }
 }
+
+/* Home keeps just one headline, the playful split pieces and the action. */
+.home-screen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(12px, 3vh, 28px);
+  padding: clamp(12px, 3vh, 28px) 0 8px;
+}
+.home-copy h1 {
+  margin: 0;
+  font-size: clamp(32px, 8vw, 46px);
+}
+.home-art {
+  min-height: 0;
+  max-height: none;
+  align-self: stretch;
+}
+.home-art svg {
+  width: min(100%, 350px);
+  height: 100%;
+  max-height: 400px;
+  filter: drop-shadow(0 20px 20px #020b2340);
+}
+.stage-preview {
+  position: absolute;
+  right: 13px;
+  top: 10px;
+  width: 34px;
+  height: 34px;
+  fill: var(--mint);
+  opacity: 0.8;
+}
+.modal .help-instruction {
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 16px 0 23px;
+  color: #c5dae5;
+}
+.help-ratings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.help-rating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 17px 4px 14px;
+  border: 1px solid #466075;
+  border-radius: 16px;
+  background: #152c42;
+}
+.help-rating.best {
+  border-color: #ffd88e;
+  background: #3f3c35;
+}
+.help-stars {
+  color: var(--yellow);
+  font-size: 18px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.help-rating strong {
+  font-size: 27px;
+  letter-spacing: -1px;
+  color: #f2f8ff;
+  font-variant-numeric: tabular-nums;
+}
+.help-rating.best strong {
+  color: var(--yellow);
+}
+.help-rating > span:last-child {
+  font-size: 10px;
+  color: var(--muted);
+}
+.modal .help-failure {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 16px 0 21px;
+}
+@media (max-height: 680px) {
+  .home-art {
+    max-height: none;
+  }
+  .help-rating {
+    padding: 13px 3px;
+  }
+  .help-rating strong {
+    font-size: 24px;
+  }
+}

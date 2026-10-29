@@ -41,31 +41,72 @@
       </header>
       <section id="homeScreen" class="screen home-screen" aria-label="홈">
         <div class="home-copy">
-          <span class="eyebrow">손끝으로 나누는 짧은 도전</span>
           <h1>똑같이 나눌 수<br />있을까요<span>?</span></h1>
-          <p>선을 쓱, 감각은 정확하게.<br />10개의 도형에 도전해보세요.</p>
         </div>
         <div class="home-art" aria-hidden="true">
-          <svg viewBox="0 0 320 250">
-            <g transform="translate(160 120) rotate(-12)">
-              <path d="M-99-84H91L-33 85H-99Z" fill="#a4f7be" />
-              <path d="M109-75V94H-15Z" fill="#7bdcb4" />
+          <svg viewBox="0 0 360 330">
+            <defs>
+              <linearGradient id="mint-piece" x2=".9" y2="1">
+                <stop stop-color="#bcffd5" />
+                <stop offset="1" stop-color="#77e8b9" />
+              </linearGradient>
+              <linearGradient id="peach-piece" x2=".8" y2="1">
+                <stop stop-color="#ffe4a5" />
+                <stop offset="1" stop-color="#ffc378" />
+              </linearGradient>
+              <linearGradient id="pink-piece" x2=".9" y2="1">
+                <stop stop-color="#f3c5e1" />
+                <stop offset="1" stop-color="#baaff4" />
+              </linearGradient>
+            </defs>
+            <g transform="rotate(-7 113 100)">
               <path
-                d="M95-93 -39 91"
-                stroke="#eafff2"
-                stroke-width="3"
+                d="M92 40Q154 24 177 36L163 155 46 126Q32 52 92 40Z"
+                fill="url(#mint-piece)"
+              />
+              <path
+                d="m79 82 8-6 8 6m25-2 8-6 8 6M94 105q13 16 27-1"
+                fill="none"
+                stroke="#204c45"
+                stroke-width="6"
                 stroke-linecap="round"
-                stroke-dasharray="1 12"
+                stroke-linejoin="round"
               />
             </g>
-            <circle cx="40" cy="48" r="4" fill="#ffd88e" />
-            <circle cx="284" cy="196" r="6" fill="#ffd88e" />
+            <g transform="rotate(8 250 100)">
+              <path
+                d="M198 34C275 25 321 78 307 151L184 168Z"
+                fill="url(#peach-piece)"
+              />
+              <path
+                d="m221 80 9 7-9 7m43-7 9-7 9 7M235 113q14 17 27-2"
+                fill="none"
+                stroke="#72502d"
+                stroke-width="6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </g>
+            <g transform="rotate(-3 175 238)">
+              <path
+                d="M49 151 172 184 299 167C311 252 245 299 165 286 88 276 36 224 49 151Z"
+                fill="url(#pink-piece)"
+              />
+              <path
+                d="m123 211 8-6 8 6m65 0 8-6 8 6M153 230q20 25 40-1"
+                fill="none"
+                stroke="#514268"
+                stroke-width="6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </g>
           </svg>
         </div>
         <div class="home-bottom">
           <button class="cta" id="homeStartButton" type="button">
-            게임 시작</button
-          ><span>눈대중과 손끝의 감각으로 N등분!</span>
+            게임 시작
+          </button>
         </div>
       </section>
       <section
@@ -89,7 +130,7 @@
         hidden
       >
         <section class="mission" aria-label="현재 미션">
-          <span class="label" id="stageLabel">STAGE 01 / 10</span>
+          <span class="label" id="stageLabel">STAGE 01 / 40</span>
           <h1>
             <span id="shapeName">정사각형</span>
             <em><span id="splitCount">2</span>등분</em>

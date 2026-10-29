@@ -1,3 +1,4 @@
+import { objectShapes } from "./objects.js";
 const PI = Math.PI;
 export const palette = [
   "#a4f7be",
@@ -15,7 +16,7 @@ const polygon = (n, rx, ry = rx, rotation = -PI / 2, cx = 0.5, cy = 0.5) =>
     y: cy + ry * Math.sin(rotation + (2 * PI * i) / n),
   }));
 const xy = (a) => a.map(([x, y]) => ({ x, y }));
-export const stages = [
+const originalStages = [
   {
     name: "정사각형",
     n: 2,
@@ -119,4 +120,48 @@ export const stages = [
     ]),
     tip: "마지막 난이도! 정확한 면적을 예상하며 6등분하세요.",
   },
+];
+
+// Original ten retain their indices so existing localStorage scores remain valid.
+const variant = (index, n, time) => ({ ...originalStages[index], n, time });
+const object = (key, n, time) => ({
+  ...objectShapes[key],
+  n,
+  time,
+  kind: "object",
+  tip: "그림의 넓이를 눈대중으로 나눠보세요.",
+});
+export const stages = [
+  ...originalStages,
+  variant(0, 3, 3.2),
+  variant(1, 3, 3.2),
+  object("umbrella", 2, 3),
+  variant(3, 2, 2.4),
+  variant(6, 2, 2.4),
+  object("apple", 2, 3),
+  variant(0, 4, 4),
+  variant(8, 3, 3.5),
+  object("heart", 2, 3),
+  variant(4, 3, 3.5),
+  variant(2, 4, 4.3),
+  object("rabbit", 2, 3.5),
+  variant(3, 4, 4.3),
+  variant(7, 3, 3.5),
+  // Final sixteen are object silhouettes with progressively varied split counts.
+  object("umbrella", 3, 3.8),
+  object("apple", 3, 3.8),
+  object("mushroom", 3, 3.8),
+  object("heart", 3, 3.8),
+  object("rabbit", 3, 4),
+  object("fish", 3, 4),
+  object("star", 4, 4.8),
+  object("umbrella", 4, 4.8),
+  object("apple", 4, 4.8),
+  object("lightning", 3, 4.3),
+  object("rabbit", 4, 5),
+  object("fish", 4, 5),
+  object("mushroom", 4, 5),
+  object("tulip", 4, 5.2),
+  object("star", 5, 5.8),
+  object("rabbit", 5, 5.8),
 ];
