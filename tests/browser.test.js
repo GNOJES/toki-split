@@ -650,3 +650,149 @@ test("home has only its title, playful art and start; help highlights all star c
     await page.close();
   }
 });
+
+async function hardwareBack(page) {
+  await page.goBack();
+  await page.waitForFunction(
+    () => history.state?.["toki-split-back"] === "guard",
+  );
+}
+
+test("Android-style browser back stays in app at home without growing history on reload", async () => {
+  const page = await open({ hasTouch: true, isMobile: true });
+  await page.route(baseURL + "/outside.html", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<p>이전 페이지</p>" }),
+  );
+  await page.goto(baseURL + "/outside.html");
+  await page.goto(baseURL);
+  await page.locator(".home-copy").tap();
+  const length = await page.evaluate(() => history.length);
+  for (let i = 0; i < 3; i++) {
+    await hardwareBack(page);
+    assert.equal(page.url(), baseURL + "/");
+    assert.equal(await page.locator("#homeScreen").isVisible(), true);
+  }
+  assert.equal(await page.evaluate(() => history.length), length);
+  await page.reload();
+  await hardwareBack(page);
+  assert.equal(await page.locator("#homeScreen").isVisible(), true);
+  assert.equal(await page.evaluate(() => history.length), length);
+  await page.close();
+});
+
+test("browser back closes help and resumes play, then returns game → stages → home", async () => {
+  const page = await open();
+  await select(page);
+  await page.clock.fastForward(400);
+  await page.locator("#helpButton").click();
+  const paused = await page.locator("#timer").innerText();
+  await page.clock.fastForward(5000);
+  await hardwareBack(page);
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  assert.equal(await page.locator("#gameScreen").isVisible(), true);
+  assert.equal(await page.locator("#timer").innerText(), paused);
+  await page.clock.fastForward(200);
+  assert.ok(
+    parseFloat(await page.locator("#timer").innerText()) < parseFloat(paused),
+  );
+  const b = await page.locator("canvas").boundingBox();
+  await page.mouse.move(b.x + 0.1 * b.width, b.y + 0.5 * b.height);
+  await page.mouse.down();
+  await page.mouse.move(b.x + 0.4 * b.width, b.y + 0.5 * b.height);
+  await hardwareBack(page);
+  await page.mouse.up();
+  assert.equal(await page.locator("#stageScreen").isVisible(), true);
+  await page.clock.fastForward(5000);
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  await page.locator("#helpButton").click();
+  await hardwareBack(page);
+  assert.equal(await page.locator("#stageScreen").isVisible(), true);
+  await hardwareBack(page);
+  assert.equal(await page.locator("#homeScreen").isVisible(), true);
+  assert.equal(page.url(), baseURL + "/");
+  await page.close();
+});
+
+test("browser back closes result/timeout/summary first and cancels reveal when leaving game", async () => {
+  const page = await open();
+  await select(page);
+  await drag(
+    page,
+    [
+      [0.1, 0.5],
+      [0.9, 0.5],
+    ],
+    8,
+  );
+  await page.clock.fastForward(1600);
+  assert.equal(await page.locator("#modal").isVisible(), true);
+  await hardwareBack(page);
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  assert.equal(await page.locator("#gameScreen").isVisible(), true);
+  await pieces(page, 2);
+  await hardwareBack(page);
+  assert.equal(await page.locator("#stageScreen").isVisible(), true);
+  await page.locator('[data-stage="0"]').click();
+  await page.clock.fastForward(2100);
+  await hardwareBack(page);
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  assert.equal(await page.locator("#gameScreen").isVisible(), true);
+  await hardwareBack(page);
+  await page.locator('[data-stage="0"]').click();
+  await drag(
+    page,
+    [
+      [0.1, 0.5],
+      [0.9, 0.5],
+    ],
+    8,
+  );
+  await hardwareBack(page);
+  assert.equal(await page.locator("#stageScreen").isVisible(), true);
+  await page.clock.fastForward(2000);
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  // The last stage's timeout offers the same full-results popup as a clear.
+  await page.locator('[data-stage="39"]').click();
+  await page.clock.fastForward(6000);
+  await page.getByRole("button", { name: "전체 결과", exact: true }).click();
+  await hardwareBack(page);
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  assert.equal(await page.locator("#gameScreen").isVisible(), true);
+  await page.locator("#backButton").click();
+  assert.equal(await page.locator("#stageScreen").isVisible(), true);
+  await hardwareBack(page);
+  assert.equal(await page.locator("#homeScreen").isVisible(), true);
+  await page.close();
+});
+
+test(
+  "browser back does not mark app history as skippable on Chromium",
+  { skip: browserName !== "chromium" },
+  async () => {
+    const page = await open();
+    const session = await page.context().newCDPSession(page);
+    const issues = [];
+    session.on("Audits.issueAdded", ({ issue }) => {
+      if (
+        issue.details?.genericIssueDetails?.errorType ===
+        "NavigationEntryMarkedSkippable"
+      )
+        issues.push(issue);
+    });
+    await session.send("Audits.enable");
+    await select(page);
+    await page.locator("#helpButton").click();
+    issues.length = 0;
+    await hardwareBack(page);
+    await hardwareBack(page);
+    await session.send("Runtime.evaluate", {
+      expression: "document.body.dataset.screen",
+    });
+    assert.equal(
+      issues.length,
+      0,
+      "rearming via pushState after Back makes Android skip the app on the next Back",
+    );
+    await page.close();
+  },
+);

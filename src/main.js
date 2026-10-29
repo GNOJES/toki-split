@@ -6,6 +6,7 @@ import { createCutter } from "./cutter.js";
 import { createRenderer } from "./renderer.js";
 import { bindInput } from "./input.js";
 import { createUI } from "./ui.js";
+import { bindBrowserBack } from "./navigation.js";
 const $ = (id) => document.getElementById(id);
 const state = createGameState();
 state.bests = loadBests(undefined, stages.length);
@@ -185,6 +186,23 @@ function closeHelp() {
   $("helpButton").focus();
   updateStats();
 }
+function navigateBack() {
+  if (!$("modal").classList.contains("hidden")) {
+    if (state.modalMode === "help") closeHelp();
+    else {
+      input.cancel();
+      closeModal();
+      updateStats();
+      $(state.screen === "game" ? "retryButton" : "homeStartButton").focus({
+        preventScroll: true,
+      });
+    }
+    return;
+  }
+  if (state.screen === "game") showScreen("stage");
+  else if (state.screen === "stage") showScreen("home");
+  else $("homeStartButton").focus({ preventScroll: true });
+}
 function tick() {
   if (!state.playing) return;
   state.secondsLeft = Math.max(0, (state.deadline - performance.now()) / 1000);
@@ -231,9 +249,7 @@ $("undoButton").addEventListener("click", () => {
 });
 $("retryButton").addEventListener("click", start);
 $("homeStartButton").addEventListener("click", () => showScreen("stage"));
-$("backButton").addEventListener("click", () =>
-  showScreen(state.screen === "game" ? "stage" : "home"),
-);
+$("backButton").addEventListener("click", navigateBack);
 $("helpButton").addEventListener("click", showHelp);
 $("stageRail").addEventListener("click", (ev) => {
   const el = ev.target.closest("[data-stage]");
@@ -299,3 +315,5 @@ window.addEventListener("resize", fitBoard);
 window.visualViewport?.addEventListener("resize", fitBoard);
 renderStages();
 showScreen("home");
+
+bindBrowserBack(navigateBack);

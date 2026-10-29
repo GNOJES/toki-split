@@ -67,3 +67,14 @@ WebKit은 Pointer Event 좌표를 정수로 반올림한다. 390px 보드의 중
 - 번개 끝의 대각선 antialias 픽셀1개가 기존4방향 배분에서 도달 불가능해 누락되는 경우를 발견했다. 원래 마스크 안에서 배분되지 않은 픽셀이 있을 때만 전체 격자를 통해 가까운 영역을 찾도록 보완했다. 최종 배경 라벨은0을 유지한다. 회귀 단위 테스트 실패→통과를 확인했다.
 - WebKit의 정수 client 좌표 특성을 검증용 경로 계획에 반영했다. 게임 입력을 보정하지 않고 실제 브라우저가 전달할 좌표로 검증할 경로를 선택한다. 원래 곡선·교차·목표초과·면적·취소·터치 검증은 유지했다.
 - 단위13개, Chromium12개, WebKit10개(CDP터치전용2개 제외)로 검증한다. 모바일홈/도움말/사물 갤러리/게임 화면을 시각 검토했고, 별도 코드 리뷰에서 Critical/Important 문제는 발견되지 않았다.
+
+## Android 뒤로가기 — 2026-10-29
+
+- 공통 navigateBack 처리: 팝업 우선 닫기, 도움말은 시간 재개, 게임→선택→홈. 결과·시간 초과·전체 결과를 닫으면 현재 보드를 유지하고 다음 back에 선택 화면으로 간다.
+- 실제 터치/클릭 이후에 same-document base/guard 이력을 설치한다. 뒤로가기 처리 중 pushState를 넣지 않고 forward로 같은 항목을 재사용해 이력 누적과 Chrome의 이력 건너뛰기 판정을 피한다. 새로고침에서는 기존 guard를 재사용한다.
+- 최초안의 popstate→pushState 재삽입은 Chromium Audits에서 NavigationEntryMarkedSkippable 2건을 재현했다. forward 재사용 후 진단0건으로 회귀 검증했다.
+- Chromium/WebKit 실제 history back API로 외부 이전문서가 있는 경우, 반복/새로고침, 도움말/결과/시간초과/전체결과, 드래그취소, 결과대기취소 및 홈 복귀를 검사한다.
+- 단위13개, Chromium16개, WebKit13개(CDP 전용3개 제외). Android 실기기의 하드웨어버튼 직접조작을 대신해 모바일브라우저의 네이티브 이력 탐색과 Chromium skip진단을 사용한다.
+- 브라우저 정책상 초기진입 후 아무조작도 없을 때 및 탭닫기/주소변경은 제어대상 밖이다. 공식기준: https://chromium.googlesource.com/chromium/src/+/main/docs/history_manipulation_intervention.md
+
+별도 리뷰에서 일반적인 연속 Back 간격(1~100ms의 두 번 탐색)은 정상임을 확인했다. 같은 작업 안에서 이미 예약된 복수 history.back() 같은 극단적인 동시 탐색은 base 잔류/외부 이동이 가능하다. 브라우저가 처리하는 동시 탐색을 웹앱이 완전히 차단한다고 보장하지 않으며, Android 실기기의 실제 버튼·제스처 검증은 별도 확인 대상이다.
