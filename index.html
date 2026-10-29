@@ -9,105 +9,160 @@
     <meta name="theme-color" content="#0b1726" />
     <meta
       name="description"
-      content="손으로 그린 자유로운 절단선으로 도형을 N등분하는 타임어택 퍼즐 게임. 조각별 면적과 정확도를 측정합니다."
+      content="손으로 그린 선으로 도형을 N등분하는 짧고 빠른 모바일 챌린지."
     />
     <title>toki-split | N등분 챌린지</title>
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
-  <body>
-    <main class="app">
+  <body data-screen="home">
+    <main class="app" id="app">
       <header class="topbar">
+        <button
+          id="backButton"
+          class="nav-button"
+          type="button"
+          aria-label="뒤로"
+          hidden
+        >
+          ‹
+        </button>
         <div class="brand">
           <div class="logo" aria-hidden="true">✂</div>
           <div><strong>toki-split</strong><small>N-SPLIT CHALLENGE</small></div>
         </div>
-        <button class="help-btn" id="helpButton" type="button">
-          ? 게임 방법
+        <button
+          class="help-btn"
+          id="helpButton"
+          type="button"
+          aria-label="게임 방법"
+        >
+          ?
         </button>
       </header>
-      <section aria-label="현재 미션">
-        <div class="label">
-          <i class="dot"></i><span id="stageLabel">STAGE 01 / 10</span>
+      <section id="homeScreen" class="screen home-screen" aria-label="홈">
+        <div class="home-copy">
+          <span class="eyebrow">손끝으로 나누는 짧은 도전</span>
+          <h1>똑같이 나눌 수<br />있을까요<span>?</span></h1>
+          <p>선을 쓱, 감각은 정확하게.<br />10개의 도형에 도전해보세요.</p>
         </div>
-        <h1>
-          <span id="shapeName">정사각형</span>을
-          <em><span id="splitCount">2</span>등분</em>하세요!
-        </h1>
-        <p class="subcopy" id="subtitle">
-          주어진 도형을 똑같은 넓이로 나눠보세요.
-        </p>
-      </section>
-      <section class="stats" aria-label="게임 정보">
-        <div class="stat">
-          <div class="stat-label">⏱ 남은 시간</div>
-          <div class="stat-value" id="timer">--<small>초</small></div>
+        <div class="home-art" aria-hidden="true">
+          <svg viewBox="0 0 320 250">
+            <g transform="translate(160 120) rotate(-12)">
+              <path d="M-99-84H91L-33 85H-99Z" fill="#a4f7be" />
+              <path d="M109-75V94H-15Z" fill="#7bdcb4" />
+              <path
+                d="M95-93 -39 91"
+                stroke="#eafff2"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-dasharray="1 12"
+              />
+            </g>
+            <circle cx="40" cy="48" r="4" fill="#ffd88e" />
+            <circle cx="284" cy="196" r="6" fill="#ffd88e" />
+          </svg>
         </div>
-        <div class="stat">
-          <div class="stat-label">▧ 현재 조각</div>
-          <div class="stat-value">
-            <span id="pieceCount">1</span
-            ><small> / <span id="goalCount">2</span></small>
-          </div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">◎ 목표 면적</div>
-          <div class="stat-value">
-            <span id="targetArea">50.0</span><small>%</small>
-          </div>
+        <div class="home-bottom">
+          <button class="cta" id="homeStartButton" type="button">
+            게임 시작</button
+          ><span>눈대중과 손끝의 감각으로 N등분!</span>
         </div>
       </section>
-      <section class="board-wrap" aria-label="도형 자르기 플레이 영역">
-        <div class="board" id="boardBox">
-          <canvas
-            id="gameCanvas"
-            aria-label="드래그하여 도형을 자릅니다"
-            role="img"
-          ></canvas>
-          <span class="canvas-hint" id="canvasHint"
-            >자유롭게 드래그해 손으로 잘라보세요 ✎</span
-          >
-          <span class="reveal-banner" id="revealBanner"
-            >✦ 분할 완료! 각 조각의 넓이</span
-          >
-          <div class="reveal-pcts" id="revealPcts" aria-live="polite"></div>
-          <span
-            class="floating-toast"
-            id="toast"
-            role="status"
-            aria-live="polite"
-          ></span>
-        </div>
-        <div class="meter" aria-hidden="true">
-          <div class="meter-inner" id="timerFill"></div>
-        </div>
-      </section>
-      <section class="actions">
-        <div id="status" class="status">
-          <span class="status-dot"></span
-          ><span id="statusText">게임 시작을 눌러주세요</span>
-        </div>
-        <div class="action-buttons">
-          <button type="button" class="mini-btn" id="undoButton" disabled>
-            ↶ 되돌리기</button
-          ><button type="button" class="mini-btn" id="retryButton">
-            ⟳ 다시하기
-          </button>
-        </div>
-      </section>
-      <section aria-label="스테이지 선택">
-        <div class="rail-header">
-          <strong>스테이지 선택</strong><span>클릭해 언제든 다시 도전</span>
+      <section
+        id="stageScreen"
+        class="screen stage-screen"
+        aria-label="스테이지 선택"
+        hidden
+      >
+        <div class="screen-heading">
+          <span class="eyebrow">CHOOSE YOUR CHALLENGE</span>
+          <h1>스테이지 선택</h1>
+          <p>도형을 고르면 바로 시작해요.</p>
+          <span class="star-target">별 3개 · 정확도 98% 이상</span>
         </div>
         <div class="stage-rail" id="stageRail"></div>
       </section>
-      <footer>
-        손으로 그린 절단선이 도형의 양쪽 경계를 연결하면 분리됩니다.<br />등분이
-        끝나면 <strong>각 조각의 면적 비율</strong>을 보여드립니다.
-      </footer>
+      <section
+        id="gameScreen"
+        class="screen game-screen"
+        aria-label="게임"
+        hidden
+      >
+        <section class="mission" aria-label="현재 미션">
+          <span class="label" id="stageLabel">STAGE 01 / 10</span>
+          <h1>
+            <span id="shapeName">정사각형</span>
+            <em><span id="splitCount">2</span>등분</em>
+          </h1>
+          <p id="subtitle" hidden></p>
+        </section>
+        <section class="stats" aria-label="게임 정보">
+          <div class="stat">
+            <div class="stat-label">남은 시간</div>
+            <div class="stat-value" id="timer">2.0<small>초</small></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">현재 조각</div>
+            <div class="stat-value">
+              <span id="pieceCount">1</span
+              ><small> / <span id="goalCount">2</span></small>
+            </div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">목표 면적</div>
+            <div class="stat-value">
+              <span id="targetArea">50.0</span><small>%</small>
+            </div>
+          </div>
+        </section>
+        <div class="board-area" id="boardArea">
+          <section
+            class="board-wrap"
+            id="boardWrap"
+            aria-label="도형 자르기 플레이 영역"
+          >
+            <div class="board" id="boardBox">
+              <canvas
+                id="gameCanvas"
+                aria-label="드래그하여 도형을 자릅니다"
+                role="img"
+              ></canvas>
+              <span class="canvas-hint" id="canvasHint"
+                >도형을 가로질러 그어보세요</span
+              >
+              <span class="reveal-banner" id="revealBanner"
+                >각 조각의 넓이를 확인해보세요</span
+              >
+              <div class="reveal-pcts" id="revealPcts" aria-live="polite"></div>
+              <span
+                class="floating-toast"
+                id="toast"
+                role="status"
+                aria-live="polite"
+              ></span>
+            </div>
+            <div class="meter" aria-hidden="true">
+              <div class="meter-inner" id="timerFill"></div>
+            </div>
+          </section>
+        </div>
+        <section class="actions">
+          <div id="status" class="status">
+            <span id="statusText">선을 그어 조각을 나눠보세요</span>
+          </div>
+          <div class="action-buttons">
+            <button type="button" class="mini-btn" id="undoButton" disabled>
+              ↶ 되돌리기</button
+            ><button type="button" class="mini-btn" id="retryButton">
+              ⟳ 다시하기
+            </button>
+          </div>
+        </section>
+      </section>
     </main>
     <div
       id="modal"
-      class="modal"
+      class="modal hidden"
       role="dialog"
       aria-modal="true"
       aria-label="게임 안내"

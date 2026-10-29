@@ -25,8 +25,10 @@ const {
   toast,
   renderStages,
   openModal,
+  closeModal,
   explanation,
   showScore,
+  showTimeout,
   summary,
 } = createUI({ state, stages, palette, cutter });
 function cancelReveal() {
@@ -49,21 +51,48 @@ function resetPieces() {
   setStatus("게임 시작을 눌러주세요");
   draw();
 }
-function intro() {
-  resetPieces();
-  const s = stages[state.index];
-  openModal(
-    `<div class="modal-kicker">STAGE ${String(state.index + 1).padStart(2, "0")} · TIME ATTACK</div><h2>${s.name} ${s.n}등분 챌린지</h2><p>${s.time}초 안에 ${s.n}등분하세요.</p><button class="cta" data-action="start">도전 시작 →</button>`,
-    "intro",
+function showScreen(screen) {
+  cancelReveal();
+  input.cancel();
+  state.playing = false;
+  state.paused = false;
+  closeModal();
+  state.screen = screen;
+  document.body.dataset.screen = screen;
+  for (const name of ["home", "stage", "game"])
+    $(name + "Screen").hidden = name !== screen;
+  $("backButton").hidden = screen === "home";
+  $("backButton").setAttribute(
+    "aria-label",
+    screen === "game" ? "스테이지 선택으로" : "홈으로",
   );
+  if (screen === "stage") renderStages();
 }
 function start() {
+  showScreen("game");
   resetPieces();
+  fitBoard();
   state.playing = true;
   state.deadline = performance.now() + stages[state.index].time * 1000;
-  $("modal").classList.add("hidden");
   setStatus("선을 그어 조각을 나눠보세요");
   tick();
+}
+let boardBounds = null;
+function fitBoard() {
+  if (state.screen !== "game") return;
+  const r = $("boardArea").getBoundingClientRect(),
+    side = Math.max(1, Math.floor(Math.min(r.width, r.height)));
+  $("boardWrap").style.width = side + "px";
+  $("boardWrap").style.height = side + "px";
+  const box = canvas.getBoundingClientRect();
+  // Mobile browser chrome can move the board without changing its square size.
+  if (
+    boardBounds &&
+    ["x", "y", "width", "height"].some((key) => box[key] !== boardBounds[key])
+  )
+    input.cancel();
+  boardBounds = { x: box.x, y: box.y, width: box.width, height: box.height };
+  resize();
 }
 function recordResult(score) {
   const prior = state.bests[state.index];
@@ -111,11 +140,9 @@ function timeUp() {
   updateStats();
   draw();
   setStatus("시간 초과 · 다시 도전해보세요", true);
-  openModal(
-    `<div class="modal-kicker" style="color:var(--red)">TIME OVER</div><h2>시간이 끝났어요!</h2><div class="stars" aria-label="별 0개">☆☆☆</div><p>목표 조각 수를 완성하지 못해 별 0개 · 실패예요.</p><p>이번에는 <strong style="color:white">${state.pieces.length} / ${stages[state.index].n}조각</strong>까지 완성했어요. 다시 도전하면 처음부터 새롭게 시작합니다.</p><button class="cta" data-action="retry">다시 도전하기 →</button><button class="secondary" data-action="next">다른 스테이지 도전</button>`,
-    "timeout",
-  );
+  showTimeout();
 }
+
 let helpReturn = null;
 function showHelp() {
   if (
@@ -145,7 +172,7 @@ function showHelp() {
   updateStats();
 }
 function closeHelp() {
-  $("modal").classList.add("hidden");
+  closeModal();
   if (state.paused) {
     state.playing = true;
     state.deadline = performance.now() + state.pausedLeft;
@@ -202,13 +229,17 @@ $("undoButton").addEventListener("click", () => {
   draw();
   setStatus("직전 절단을 되돌렸어요");
 });
-$("retryButton").addEventListener("click", intro);
+$("retryButton").addEventListener("click", start);
+$("homeStartButton").addEventListener("click", () => showScreen("stage"));
+$("backButton").addEventListener("click", () =>
+  showScreen(state.screen === "game" ? "stage" : "home"),
+);
 $("helpButton").addEventListener("click", showHelp);
 $("stageRail").addEventListener("click", (ev) => {
   const el = ev.target.closest("[data-stage]");
   if (!el) return;
   state.index = Number(el.dataset.stage);
-  intro();
+  start();
 });
 $("modalContent").addEventListener("click", (ev) => {
   const el = ev.target.closest("[data-action]");
@@ -220,7 +251,7 @@ $("modalContent").addEventListener("click", (ev) => {
       break;
     case "next":
       state.index = Math.min(stages.length - 1, state.index + 1);
-      intro();
+      start();
       break;
     case "summary":
       summary();
@@ -228,10 +259,14 @@ $("modalContent").addEventListener("click", (ev) => {
     case "first":
       state.index = 0;
       state.results = [];
-      intro();
+      start();
       break;
     case "dismiss":
-      $("modal").classList.add("hidden");
+    case "stages":
+      showScreen("stage");
+      break;
+    case "home":
+      showScreen("home");
       break;
     case "closehelp":
       closeHelp();
@@ -259,7 +294,8 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 if ("ResizeObserver" in window)
-  new ResizeObserver(resize).observe($("boardBox"));
-window.addEventListener("resize", resize);
-intro();
-resize();
+  new ResizeObserver(fitBoard).observe($("boardArea"));
+window.addEventListener("resize", fitBoard);
+window.visualViewport?.addEventListener("resize", fitBoard);
+renderStages();
+showScreen("home");

@@ -19,7 +19,7 @@ export const stages = [
   {
     name: "정사각형",
     n: 2,
-    time: 20,
+    time: 2,
     poly: xy([
       [0.2, 0.2],
       [0.8, 0.2],
@@ -31,7 +31,7 @@ export const stages = [
   {
     name: "삼각형",
     n: 2,
-    time: 24,
+    time: 2.4,
     poly: xy([
       [0.5, 0.16],
       [0.84, 0.79],
@@ -42,7 +42,7 @@ export const stages = [
   {
     name: "사다리꼴",
     n: 3,
-    time: 32,
+    time: 3.2,
     poly: xy([
       [0.34, 0.2],
       [0.7, 0.2],
@@ -54,21 +54,21 @@ export const stages = [
   {
     name: "원",
     n: 3,
-    time: 35,
+    time: 3.5,
     poly: polygon(96, 0.33),
     tip: "원의 가장자리와 중심은 면적이 균등하게 분포하지 않아요.",
   },
   {
     name: "육각형",
     n: 4,
-    time: 37,
+    time: 3.7,
     poly: polygon(6, 0.36, 0.34, 0),
     tip: "중심을 지나는 수직·수평 절단을 시도해보세요.",
   },
   {
     name: "비대칭 사각형",
     n: 3,
-    time: 37,
+    time: 3.7,
     poly: xy([
       [0.27, 0.19],
       [0.81, 0.26],
@@ -80,7 +80,7 @@ export const stages = [
   {
     name: "직사각형",
     n: 4,
-    time: 40,
+    time: 4,
     poly: xy([
       [0.12, 0.3],
       [0.88, 0.3],
@@ -92,21 +92,21 @@ export const stages = [
   {
     name: "오각형",
     n: 4,
-    time: 43,
+    time: 4.3,
     poly: polygon(5, 0.37, 0.35),
     tip: "조각을 하나씩 나눠도 되고, 교차 없이 여러 개를 나눠도 돼요.",
   },
   {
     name: "타원",
     n: 5,
-    time: 50,
+    time: 5,
     poly: polygon(96, 0.39, 0.27),
     tip: "폭이 다른 위치에서는 같은 폭으로 잘라도 같은 넓이가 아니에요.",
   },
   {
     name: "불규칙 팔각형",
     n: 6,
-    time: 58,
+    time: 5.8,
     poly: xy([
       [0.3, 0.16],
       [0.63, 0.16],

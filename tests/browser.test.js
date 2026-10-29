@@ -22,20 +22,26 @@ after(async () => {
 });
 async function open(options = {}) {
   const page = await browser.newPage({
-    viewport: { width: 1280, height: 1000 },
+    viewport: { width: 390, height: 844 },
     ...options,
   });
   page.setDefaultTimeout(5000);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.clock.install();
+  await page.clock.install({ time: new Date("2026-10-29T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-29T00:00:01Z"));
   await page.goto(baseURL);
-  await page.locator('[data-action="start"]').click();
   page.on("close", () => assert.deepEqual(errors, []));
   return page;
 }
+async function select(page, i = 0) {
+  if (await page.locator("#homeScreen").isVisible())
+    await page.getByRole("button", { name: "게임 시작", exact: true }).click();
+  else if (!(await page.locator("#stageScreen").isVisible()))
+    await page.locator("#backButton").click();
+  await page.locator(`[data-stage="${i}"]`).click();
+}
 async function drag(page, points, steps = 1) {
-  await page.locator("canvas").scrollIntoViewIfNeeded();
   const b = await page.locator("canvas").boundingBox();
   await page.mouse.move(
     b.x + points[0][0] * b.width,
@@ -52,98 +58,168 @@ async function pieces(page, n) {
     n,
   );
 }
-async function select(page, i) {
-  await page.locator(`[data-stage="${i}"]`).click();
-  await page.locator('[data-action="start"]').click();
-}
 
-test("desktop and mobile drag → 2.6 second reveal → full result → next stage", async () => {
+test("home → stages → instant play, no intro or in-game stage rail", async () => {
+  const page = await open();
+  assert.equal(await page.locator("#homeScreen").isVisible(), true);
+  await page.screenshot({ path: "test-results/home-mobile.png" });
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  await page.getByRole("button", { name: "게임 시작", exact: true }).click();
+  assert.equal(await page.locator("#stageScreen").isVisible(), true);
+  assert.equal(await page.locator("[data-stage]").count(), 10);
+  await page.screenshot({ path: "test-results/stages-mobile.png" });
+  await page.locator('[data-stage="0"]').click();
+  assert.equal(await page.locator("#gameScreen").isVisible(), true);
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  assert.equal(await page.locator("#stageRail").isVisible(), false);
+  assert.equal(parseFloat(await page.locator("#timer").innerText()), 2);
+  await page.close();
+});
+
+test("mobile and landscape play fits viewport and wheel cannot scroll it", async () => {
   for (const viewport of [
-    { width: 1280, height: 1000 },
+    { width: 320, height: 568 },
     { width: 390, height: 844 },
-    { width: 320, height: 640 },
+    { width: 844, height: 390 },
+    { width: 1280, height: 1000 },
   ]) {
-    const page = await open({
-      viewport,
-      deviceScaleFactor: 2,
-      hasTouch: viewport.width < 500,
+    const page = await open({ viewport, hasTouch: true });
+    await select(page);
+    const layout = await page.evaluate(() => {
+      const box = document.getElementById("boardBox").getBoundingClientRect();
+      const actions = document
+        .querySelector(".actions")
+        .getBoundingClientRect();
+      return {
+        box: {
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+          bottom: box.bottom,
+        },
+        actionsBottom: actions.bottom,
+        scrollHeight: document.documentElement.scrollHeight,
+        height: innerHeight,
+        width: innerWidth,
+        pattern: getComputedStyle(
+          document.getElementById("boardBox"),
+          "::before",
+        ).backgroundImage,
+      };
     });
-    await page.clock.fastForward(1200);
+    assert.ok(layout.scrollHeight <= layout.height + 1, JSON.stringify(layout));
+    assert.ok(layout.actionsBottom <= layout.height, JSON.stringify(layout));
+    assert.ok(layout.box.y >= 0 && layout.box.bottom <= layout.height);
+    assert.ok(Math.abs(layout.box.width - layout.box.height) < 1);
+    assert.equal(layout.pattern, "none");
+    await page.mouse.wheel(0, 500);
+    assert.equal(await page.evaluate(() => scrollY), 0);
     await drag(
       page,
       [
         [0.1, 0.5],
         [0.9, 0.5],
       ],
-      20,
+      12,
     );
     await pieces(page, 2);
-    assert.equal(
-      await page
-        .locator("#modal")
-        .evaluate((el) => el.classList.contains("hidden")),
-      true,
-    );
-    assert.equal(await page.locator("#revealPcts span").count(), 2);
-    const frozen = await page.locator("#timer").innerText();
-    assert.ok(
-      parseFloat(frozen) < 20,
-      "reveal must retain actual remaining time",
-    );
+    await page.screenshot({ path: `test-results/game-${viewport.width}.png` });
     await page.clock.fastForward(2500);
-    assert.equal(
-      await page
-        .locator("#modal")
-        .evaluate((el) => el.classList.contains("hidden")),
-      true,
-    );
+    assert.equal(await page.locator("#modal").isVisible(), false);
     await page.clock.fastForward(150);
-    assert.ok(
-      parseFloat(await page.locator(".score-number").innerText()) >= 99,
-      `center cut on ${browserName} / ${viewport.width} should be approximately 100%`,
+    assert.equal(await page.locator(".result-actions button").count(), 3);
+    assert.equal(await page.locator(".stars .star").count(), 3);
+    assert.equal(await page.locator(".stars .star.earned").count(), 3);
+    assert.match(
+      await page.locator("#modalContent .star-target").innerText(),
+      /98% 이상/,
     );
-    assert.match(await page.locator("#modalContent").innerText(), /최고 기록/);
-    assert.equal(await page.locator("#timer").innerText(), frozen);
     await page.screenshot({
-      path: `test-results/result-${viewport.width}.png`,
-      fullPage: true,
-      animations: "disabled",
+      path: `test-results/new-result-${viewport.width}.png`,
     });
-    await page.locator('[data-action="next"]').click();
-    assert.match(await page.locator("#modalContent h2").innerText(), /삼각형/);
-    await page.locator('[data-action="start"]').click();
-    await pieces(page, 1);
+    await page
+      .getByRole("button", { name: "다음 스테이지", exact: true })
+      .click();
+    assert.match(await page.locator("#shapeName").innerText(), /삼각형/);
+    assert.equal(await page.locator("#modal").isVisible(), false);
     await page.close();
   }
 });
 
-test("60:40 score, best storage and retry", async () => {
+test("short deadlines, pause/resume, timeout icons and stage navigation cancel old reveal", async () => {
   const page = await open();
-  await drag(page, [
-    [0.1, 0.56],
-    [0.9, 0.56],
-  ]);
-  await pieces(page, 2);
-  await page.clock.fastForward(2700);
-  const score = parseFloat(await page.locator(".score-number").innerText());
-  assert.ok(Math.abs(score - 80) < 1);
-  await page.locator('[data-action="retry"]').click();
+  await select(page);
+  await page.clock.fastForward(500);
+  await page.locator("#helpButton").click();
+  const paused = await page.locator("#timer").innerText();
+  await page.clock.fastForward(10000);
+  assert.equal(await page.locator("#timer").innerText(), paused);
+  await page.locator('[data-action="closehelp"]').click();
+  await page.clock.fastForward(1600);
+  assert.match(await page.locator("#modalContent h2").innerText(), /시간/);
+  assert.equal(await page.locator(".stars .star.earned").count(), 0);
+  assert.equal(await page.locator(".result-actions button").count(), 3);
+  await page.getByRole("button", { name: "재도전", exact: true }).click();
   await pieces(page, 1);
   await drag(page, [
     [0.1, 0.5],
     [0.9, 0.5],
   ]);
-  await page.clock.fastForward(2700);
-  const best = await page.evaluate(
-    () => JSON.parse(localStorage.getItem("toki-split-best-v1"))[0],
-  );
-  assert.equal(best, 100);
-  await page.reload();
-  assert.match(await page.locator('[data-stage="0"]').innerText(), /100.0%/);
+  await pieces(page, 2);
+  await page.locator("#backButton").click();
+  await page.clock.fastForward(3000);
+  assert.equal(await page.locator("#stageScreen").isVisible(), true);
+  assert.equal(await page.locator("#modal").isVisible(), false);
+  await page.locator('[data-stage="9"]').click();
+  assert.equal(parseFloat(await page.locator("#timer").innerText()), 5.8);
   await page.close();
 });
 
-test("curve, zigzag, incomplete, boundary, intersection, over-goal, undo and restart", async () => {
+test("score failure, highest stage stars, retry and stage icons", async () => {
+  const page = await open();
+  await select(page);
+  await drag(page, [
+    [0.1, 0.56],
+    [0.9, 0.56],
+  ]);
+  await page.clock.fastForward(2700);
+  assert.ok(
+    Math.abs(parseFloat(await page.locator(".score-number").innerText()) - 80) <
+      1,
+  );
+  assert.equal(await page.locator(".stars .star.earned").count(), 1);
+  await page.getByRole("button", { name: "재도전", exact: true }).click();
+  await drag(page, [
+    [0.1, 0.5],
+    [0.9, 0.5],
+  ]);
+  await page.clock.fastForward(2700);
+  await page.getByRole("button", { name: "재도전", exact: true }).click();
+  await drag(page, [
+    [0.1, 0.65],
+    [0.9, 0.65],
+  ]);
+  await page.clock.fastForward(2700);
+  assert.match(await page.locator("#modalContent h2").innerText(), /실패/);
+  assert.equal(await page.locator(".stars .star.earned").count(), 0);
+  await page
+    .getByRole("button", { name: "스테이지 선택", exact: true })
+    .click();
+  assert.equal(
+    await page.locator('[data-stage="0"] .stage-stars').innerText(),
+    "★★★",
+  );
+  await page.reload();
+  await page.getByRole("button", { name: "게임 시작", exact: true }).click();
+  assert.equal(
+    await page.locator('[data-stage="0"] .stage-stars').innerText(),
+    "★★★",
+  );
+  await page.close();
+});
+
+test("freehand/zigzag/incomplete/intersection/over-goal and undo still work", async () => {
   const page = await open();
   await select(page, 4);
   await drag(
@@ -155,7 +231,6 @@ test("curve, zigzag, incomplete, boundary, intersection, over-goal, undo and res
     12,
   );
   await pieces(page, 1);
-  assert.match(await page.locator("#statusText").innerText(), /경계/);
   await drag(page, [
     [0.01, 0.01],
     [0.99, 0.01],
@@ -175,14 +250,10 @@ test("curve, zigzag, incomplete, boundary, intersection, over-goal, undo and res
   await pieces(page, 2);
   await page.locator("#undoButton").click();
   await pieces(page, 1);
-  await drag(
-    page,
-    [
-      [0.1, 0.5],
-      [0.9, 0.5],
-    ],
-    1,
-  );
+  await drag(page, [
+    [0.1, 0.5],
+    [0.9, 0.5],
+  ]);
   await pieces(page, 2);
   await drag(
     page,
@@ -194,7 +265,6 @@ test("curve, zigzag, incomplete, boundary, intersection, over-goal, undo and res
   );
   await pieces(page, 4);
   await page.locator("#retryButton").click();
-  await page.locator('[data-action="start"]').click();
   await pieces(page, 1);
   await select(page, 2);
   await drag(page, [
@@ -209,46 +279,6 @@ test("curve, zigzag, incomplete, boundary, intersection, over-goal, undo and res
   await pieces(page, 2);
   assert.match(await page.locator("#statusText").innerText(), /초과/);
   await page.locator("#undoButton").click();
-  await pieces(page, 1);
-  await page.close();
-});
-
-test("deadline, help pause, lost capture, unrelated cancellation and restart during reveal", async () => {
-  const page = await open();
-  await page.clock.fastForward(500);
-  await page.locator("#helpButton").click();
-  const paused = await page.locator("#timer").innerText();
-  await page.clock.fastForward(30000);
-  assert.equal(await page.locator("#timer").innerText(), paused);
-  await page.locator('[data-action="closehelp"]').click();
-  await page.clock.fastForward(20000);
-  assert.match(
-    await page.locator("#modalContent").innerText(),
-    /시간이 끝났어요/,
-  );
-  assert.equal(parseFloat(await page.locator("#timer").innerText()), 0);
-  await page.locator('[data-action="retry"]').click();
-  const b = await page.locator("canvas").boundingBox();
-  await page.mouse.move(b.x + 0.1 * b.width, b.y + 0.5 * b.height);
-  await page.mouse.down();
-  await page.mouse.move(b.x + 0.5 * b.width, b.y + 0.5 * b.height);
-  await page
-    .locator("canvas")
-    .dispatchEvent("pointercancel", { pointerId: 999, isPrimary: false });
-  await page.mouse.move(b.x + 0.9 * b.width, b.y + 0.5 * b.height);
-  await page.mouse.up();
-  await pieces(page, 2);
-  await page.locator("#retryButton").click();
-  await page.clock.fastForward(3000);
-  assert.match(await page.locator("#modalContent h2").innerText(), /챌린지/);
-  await pieces(page, 1);
-  await page.locator('[data-action="start"]').click();
-  await page.mouse.move(b.x + 0.1 * b.width, b.y + 0.5 * b.height);
-  await page.mouse.down();
-  await page.mouse.move(b.x + 0.3 * b.width, b.y + 0.5 * b.height);
-  await page.locator("canvas").evaluate((el) => el.releasePointerCapture(1));
-  await page.mouse.move(b.x + 0.9 * b.width, b.y + 0.5 * b.height);
-  await page.mouse.up();
   await pieces(page, 1);
   await page.close();
 });
@@ -328,6 +358,51 @@ test("real Canvas partition for all shapes, curves, self crossings and tiny piec
   await page.close();
 });
 
+test("all ten stages complete and use direct next-stage navigation", async () => {
+  const page = await open({ viewport: { width: 320, height: 568 } });
+  await select(page);
+  const stages = await page.evaluate(
+    async () => (await import("/src/stages.js")).stages,
+  );
+  assert.deepEqual(
+    stages.map((s) => s.time),
+    [2, 2.4, 3.2, 3.5, 3.7, 3.7, 4, 4.3, 5, 5.8],
+  );
+  for (const [i, s] of stages.entries()) {
+    const min = Math.min(...s.poly.map((p) => p.x)),
+      max = Math.max(...s.poly.map((p) => p.x));
+    for (let j = 1; j < s.n; j++) {
+      const x = min + ((max - min) * j) / s.n;
+      await drag(
+        page,
+        [
+          [x, 0.02],
+          [x, 0.98],
+        ],
+        3,
+      );
+      await pieces(page, j + 1);
+    }
+    assert.equal(await page.locator("#revealPcts span").count(), s.n);
+    await page.clock.fastForward(2700);
+    assert.equal(await page.locator(".segment").count(), s.n);
+    if (i === 9) {
+      await page.screenshot({ path: "test-results/six-pieces-compact.png" });
+      await page
+        .getByRole("button", { name: "전체 결과", exact: true })
+        .click();
+      assert.match(
+        await page.locator("#modalContent").innerText(),
+        /완료한 스테이지 10 \/ 10/,
+      );
+    } else
+      await page
+        .getByRole("button", { name: "다음 스테이지", exact: true })
+        .click();
+  }
+  await page.close();
+});
+
 test(
   "mobile touch gestures stay on canvas and commit actual freehand path",
   { skip: browserName !== "chromium" },
@@ -337,6 +412,7 @@ test(
       hasTouch: true,
       isMobile: true,
     });
+    await select(page);
     const session = await page.context().newCDPSession(page);
     await page.locator("canvas").scrollIntoViewIfNeeded();
     const b = await page.locator("canvas").boundingBox();
@@ -375,110 +451,6 @@ test(
   },
 );
 
-test("all ten stages play through UI and the final summary on a narrow phone", async () => {
-  const page = await open({
-    viewport: { width: 320, height: 640 },
-    hasTouch: true,
-  });
-  const stages = await page.evaluate(async () => {
-    const { stages } = await import("/src/stages.js");
-    return stages;
-  });
-  for (const [i, stage] of stages.entries()) {
-    assert.match(
-      await page.locator("#shapeName").innerText(),
-      new RegExp(stage.name),
-    );
-    const min = Math.min(...stage.poly.map((p) => p.x)),
-      max = Math.max(...stage.poly.map((p) => p.x));
-    for (let j = 1; j < stage.n; j++) {
-      const x = min + ((max - min) * j) / stage.n;
-      await drag(
-        page,
-        [
-          [x, 0.02],
-          [x, 0.98],
-        ],
-        3,
-      );
-      await pieces(page, j + 1);
-    }
-    assert.equal(await page.locator("#revealPcts span").count(), stage.n);
-    await page.clock.fastForward(2700);
-    assert.equal(await page.locator(".segment").count(), stage.n);
-    if (i === 9) {
-      await page.screenshot({
-        path: "test-results/six-pieces-320.png",
-        fullPage: true,
-        animations: "disabled",
-      });
-      await page.locator('[data-action="summary"]').click();
-      assert.match(
-        await page.locator("#modalContent").innerText(),
-        /완료한 스테이지 10 \/ 10/,
-      );
-    } else {
-      await page.locator('[data-action="next"]').click();
-      await page.locator('[data-action="start"]').click();
-    }
-  }
-  await page.close();
-});
-
-test("active cancellation and background pause discard partial paths; help preserves result", async () => {
-  const page = await open();
-  const b = await page.locator("canvas").boundingBox();
-  async function begin() {
-    await page.mouse.move(b.x + 0.1 * b.width, b.y + 0.5 * b.height);
-    await page.mouse.down();
-    await page.mouse.move(b.x + 0.4 * b.width, b.y + 0.5 * b.height);
-  }
-  async function end() {
-    await page.mouse.move(b.x + 0.9 * b.width, b.y + 0.5 * b.height);
-    await page.mouse.up();
-    await pieces(page, 1);
-  }
-  await begin();
-  await page
-    .locator("canvas")
-    .dispatchEvent("pointercancel", { pointerId: 1, isPrimary: true });
-  await end();
-  await begin();
-  await page.evaluate(() => {
-    Object.defineProperty(document, "hidden", {
-      configurable: true,
-      value: true,
-    });
-    document.dispatchEvent(new Event("visibilitychange"));
-  });
-  const paused = await page.locator("#timer").innerText();
-  await page.clock.fastForward(30000);
-  assert.equal(await page.locator("#timer").innerText(), paused);
-  await page.evaluate(() => {
-    Object.defineProperty(document, "hidden", {
-      configurable: true,
-      value: false,
-    });
-    document.dispatchEvent(new Event("visibilitychange"));
-  });
-  await end();
-  await begin();
-  await page.clock.fastForward(21000);
-  await end();
-  assert.match(await page.locator("#modalContent h2").innerText(), /時間|시간/);
-  await page.locator('[data-action="retry"]').click();
-  await drag(page, [
-    [0.1, 0.5],
-    [0.9, 0.5],
-  ]);
-  await page.clock.fastForward(2700);
-  await page.locator("#helpButton").evaluate((el) => el.click());
-  assert.match(await page.locator("#modalContent h2").innerText(), /균등/);
-  await page.locator('[data-action="closehelp"]').click();
-  assert.match(await page.locator("#modalContent h2").innerText(), /분할 성공/);
-  await page.close();
-});
-
 test(
   "primary touch survives a second finger without phantom cuts",
   { skip: browserName !== "chromium" },
@@ -488,6 +460,7 @@ test(
       hasTouch: true,
       isMobile: true,
     });
+    await select(page);
     const session = await page.context().newCDPSession(page);
     await page.locator("canvas").scrollIntoViewIfNeeded();
     const b = await page.locator("canvas").boundingBox();
@@ -526,129 +499,104 @@ test(
   },
 );
 
-test("stage stars derive from legacy best scores and rules are visible", async () => {
-  const page = await open({ viewport: { width: 320, height: 640 } });
-  await page.evaluate(() =>
-    localStorage.setItem(
-      "toki-split-best-v1",
-      JSON.stringify([100, 95, 80, 60]),
-    ),
-  );
-  await page.reload();
-  for (const [i, stars] of [3, 2, 1, 0].entries()) {
-    assert.equal(
-      await page.locator(`[data-stage="${i}"] .stage-stars`).innerText(),
-      "★".repeat(stars) + "☆".repeat(3 - stars),
-    );
-    assert.match(
-      await page.locator(`[data-stage="${i}"]`).getAttribute("aria-label"),
-      new RegExp(`별 ${stars}개`),
-    );
-  }
-  assert.match(
-    await page.locator('[data-stage="4"]').getAttribute("aria-label"),
-    /미도전/,
-  );
-  assert.equal(await page.locator("#modalContent .instruction").count(),0);
-  assert.equal(await page.locator(".rating-guide").count(),0);
-  await page.locator('[data-action="start"]').click();
-  await page.locator('#helpButton').click();
-  assert.match(
-    await page.locator(".rating-guide").innerText(),
-    /75% 미만.*실패/,
-  );
-  await page.close();
-});
-
-test("zero-star result fails after reveal, retries first and preserves highest stage stars", async () => {
-  const page = await open({ viewport: { width: 320, height: 640 } });
-  await drag(
-    page,
-    [
-      [0.1, 0.65],
-      [0.9, 0.65],
-    ],
-    10,
-  );
-  await pieces(page, 2);
-  assert.equal(await page.locator("#revealPcts span").count(), 2);
-  await page.clock.fastForward(2700);
-  assert.match(await page.locator("#modalContent h2").innerText(), /실패/);
-  assert.equal(await page.locator(".stars").innerText(), "☆☆☆");
-  assert.equal(await page.locator(".cta").getAttribute("data-action"), "retry");
-  assert.doesNotMatch(
-    await page.locator("#modalContent").innerText(),
-    /CLEAR!|분할 성공/,
-  );
-  await page.screenshot({
-    path: "test-results/zero-stars-320.png",
-    fullPage: true,
-    animations: "disabled",
+test("cancelled pointers, backgrounding and viewport resize discard partial strokes", async () => {
+  const page = await open();
+  await select(page);
+  let b = await page.locator("canvas").boundingBox();
+  const begin = async () => {
+    b = await page.locator("canvas").boundingBox();
+    await page.mouse.move(b.x + 0.1 * b.width, b.y + 0.5 * b.height);
+    await page.mouse.down();
+    await page.mouse.move(b.x + 0.4 * b.width, b.y + 0.5 * b.height);
+  };
+  const end = async () => {
+    const r = await page.locator("canvas").boundingBox();
+    await page.mouse.move(r.x + 0.9 * r.width, r.y + 0.5 * r.height);
+    await page.mouse.up();
+    await pieces(page, 1);
+  };
+  await begin();
+  await page
+    .locator("canvas")
+    .dispatchEvent("pointercancel", { pointerId: 1, isPrimary: true });
+  await end();
+  await begin();
+  await page.locator("canvas").evaluate((el) => el.releasePointerCapture(1));
+  await end();
+  await begin();
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: true,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
   });
-  await page.locator(".cta").click();
-  await pieces(page, 1);
+  const paused = await page.locator("#timer").innerText();
+  await page.clock.fastForward(10000);
+  assert.equal(await page.locator("#timer").innerText(), paused);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: false,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await end();
+  await begin();
+  await page.setViewportSize({ width: 390, height: 920 });
+  await page.clock.runFor(20);
+  await end();
+  await begin();
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.clock.runFor(20);
+  await end();
+  await page.locator("canvas").dispatchEvent("pointerdown", {
+    pointerId: 50,
+    isPrimary: false,
+    button: 0,
+    clientX: b.x,
+    clientY: b.y,
+  });
   await drag(
     page,
     [
       [0.1, 0.5],
       [0.9, 0.5],
     ],
-    10,
+    8,
   );
-  await page.clock.fastForward(2700);
-  assert.equal(
-    await page.locator('[data-stage="0"] .stage-stars').innerText(),
-    "★★★",
-  );
-  await page.locator('[data-action="retry"]').click();
-  await drag(
-    page,
-    [
-      [0.1, 0.65],
-      [0.9, 0.65],
-    ],
-    10,
-  );
-  await page.clock.fastForward(2700);
-  await page.reload();
-  assert.equal(
-    await page.locator('[data-stage="0"] .stage-stars').innerText(),
-    "★★★",
-  );
+  await pieces(page, 2);
   await page.close();
 });
 
-test("timeout is a persisted zero-star failure and incomplete run does not claim all clear", async () => {
-  const page = await open();
-  await page.clock.fastForward(21000);
-  assert.equal(await page.locator(".stars").innerText(), "☆☆☆");
-  await page.reload();
-  assert.match(
-    await page.locator('[data-stage="0"]').getAttribute("aria-label"),
-    /별 0개/,
-  );
-  await page.locator('[data-action="start"]').click();
-  await select(page, 9);
-  for (const x of [0.22, 0.25, 0.28, 0.31, 0.34])
+test("real-time mobile round cuts immediately, reveals result, and expires in two seconds", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  });
+  try {
+    await page.goto(baseURL);
+    await select(page);
+    const box = await page.locator("canvas").boundingBox();
+    assert.ok(box.width > 200);
     await drag(
       page,
       [
-        [x, 0.02],
-        [x, 0.98],
+        [0.1, 0.5],
+        [0.9, 0.5],
       ],
-      3,
+      8,
     );
-  await pieces(page, 6);
-  await page.clock.fastForward(2700);
-  assert.match(await page.locator("#modalContent h2").innerText(), /실패/);
-  await page.locator('[data-action="summary"]').click();
-  assert.doesNotMatch(
-    await page.locator("#modalContent h2").innerText(),
-    /완주/,
-  );
-  assert.match(
-    await page.locator("#modalContent").innerText(),
-    /완료한 스테이지 0 \/ 10/,
-  );
-  await page.close();
+    await pieces(page, 2);
+    assert.equal(await page.locator("#modal").isVisible(), false);
+    await page.locator(".score-number").waitFor({ timeout: 5000 });
+    assert.ok(
+      parseFloat(await page.locator(".score-number").innerText()) >= 98,
+    );
+    await page.getByRole("button", { name: "재도전", exact: true }).click();
+    await page.waitForTimeout(2200);
+    assert.match(await page.locator("#modalContent h2").innerText(), /시간/);
+  } finally {
+    await page.close();
+  }
 });

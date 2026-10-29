@@ -55,16 +55,6 @@ export function createRenderer({ canvas, state, stages, palette, cutter }) {
     if (!w) return;
     ctx.clearRect(0, 0, w, w);
     ctx.save();
-    ctx.strokeStyle = "#9ecad329";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 9]);
-    ctx.beginPath();
-    ctx.moveTo(w / 2, w * 0.08);
-    ctx.lineTo(w / 2, w * 0.92);
-    ctx.moveTo(w * 0.08, w / 2);
-    ctx.lineTo(w * 0.92, w / 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
     const poly = stages[state.index].poly;
     pathPoly(poly);
     ctx.shadowColor = "#08182085";
