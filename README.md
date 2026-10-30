@@ -122,3 +122,9 @@ npm run build
 공유 미리보기는 게임 이름과 민트색 사각형만 담은 `assets/og-image.png`(1200×630)를 사용합니다. Open Graph와 Twitter Card 메타태그는 정적 HTML에 포함되어 있으며, 이미지도 `dist/assets/`에 배포합니다.
 
 편집 가능한 원본은 `assets/og-image.svg`입니다. 수정 후 개발용 Playwright가 설치된 환경에서 `npm run assets:share`로 PNG를 다시 만들 수 있습니다. 일반 배포 빌드는 저장된 PNG를 복사하므로 브라우저나 이미지 렌더링 의존성이 필요하지 않습니다.
+
+## 방문 통계
+
+Vercel Web Analytics의 정적 HTML 스크립트를 비동기로 로드합니다. 추가 패키지나 환경변수는 필요하지 않습니다. 방문자·페이지뷰는 Vercel 프로젝트의 Analytics에서 확인합니다. 수집하려면 프로젝트의 Web Analytics를 활성화하고 배포해야 합니다.
+
+현재 화면 전환은 같은 URL에서 이루어지므로 홈·스테이지·게임별 통계를 따로 기록하지 않습니다. 로컬 서버에는 `/_vercel/insights/script.js`가 없어 404가 표시될 수 있지만 게임 실행에는 영향을 주지 않습니다.
